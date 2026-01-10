@@ -42,7 +42,12 @@ class HomeViewModel : ViewModel() {
                         // 2. Adım: Metni bulduk, şimdi Gemini'ye gönderelim
                         viewModelScope.launch {
                             // GeminiHelper'daki fonksiyonu çağırıyoruz
-                            val result = geminiHelper.analyzeTranscript(transcriptText)
+                            val homePrompt = """
+                            Aşağıdaki transkripti analiz et ve öğrenciye uygun kariyer yolları öner:
+                            $transcriptText
+                            """.trimIndent()
+
+                            val result = geminiHelper.sendPromptToOpenAI(homePrompt)
 
                             // 3. Adım: Gelen cevabı ekrana yansıtıyoruz
                             _analysisResult.value = result

@@ -50,7 +50,18 @@ fun LoginScreen(
 
         Button(
             onClick = {
-                vm.login(email, password) { onLoginSuccess() }
+                // 1. Önce Giriş Yap
+                vm.login(email, password) {
+                    // 2. Giriş Başarılıysa Durumu Kontrol Et
+                    vm.checkUserStatus { hasTranscript ->
+                        if (hasTranscript) {
+                            onLoginSuccess()
+                        } else {
+                            // Yoksa normal akışa devam et
+                            onLoginSuccess()
+                        }
+                    }
+                }
             },
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()

@@ -1,33 +1,28 @@
 package com.example.careermatch.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.BusinessCenter
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.careermatch.viewmodel.HomeViewModel
+import androidx.navigation.NavController
+import com.example.careermatch.ui.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = viewModel()
+    navController: NavController,
+    onLogout: () -> Unit
 ) {
-    // ViewModel'den gelen verileri dinliyoruz
-    val analysisResult by viewModel.analysisResult.collectAsState()
-    val loading by viewModel.loading.collectAsState()
-
-    // Sayfa uzun olursa aşağı kaydırabilelim diye ScrollState ekliyoruz
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -37,21 +32,33 @@ fun HomeScreen(
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.primary
-                )
+                ),
+                // SAĞ ÜST KÖŞEYE ÇIKIŞ BUTONU EKLİYORUZ
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Çıkış Yap",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             )
         }
     ) { paddingValues ->
-
+        // ... (Geri kalan kodlar ve Column yapısı AYNI, değişmedi) ...
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(scrollState), // Kaydırma özelliği
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(24.dp)
+                .verticalScroll(scrollState),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
+            // ... (İçerik kodların burada aynen duruyor) ...
 
-            // 1. Üst Bilgilendirme Kartı
+            // Bilgi Kartı...
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                 modifier = Modifier.fillMaxWidth()
@@ -63,71 +70,36 @@ fun HomeScreen(
                     Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Yüklediğin transkript verilerine göre yapay zeka senin için en uygun kariyer yolunu çizecek.",
+                        text = "Transkriptin başarıyla yüklendi! Şimdi ilgilendiğin iş ilanlarını arayabilir ve yapay zeka ile uyumluluğunu test edebilirsin.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
-            // 2. Analiz Butonu ve Yükleme Durumu
-            if (loading) {
-                // Yükleniyorsa dönen çember ve yazı
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    "Transkript inceleniyor...\nGemini AI düşünüyor...",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-            } else {
-                // Yükleme yoksa butonu göster
-                Button(
-                    onClick = { viewModel.analyzeUserTranscript() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Star, contentDescription = null) // Star her zaman çalışır
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Yapay Zeka ile Analiz Et", style = MaterialTheme.typography.titleMedium)
-                }
+            // İŞ ARAMA BUTONU
+            Button(
+                onClick = { navController.navigate(Routes.JOB_SEARCH) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Default.BusinessCenter, contentDescription = null)
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("İş İlanlarını Ara & Analiz Et", style = MaterialTheme.typography.titleLarge)
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. Sonuç Raporu Alanı (Eğer sonuç varsa görünür)
-            if (analysisResult != null && !loading) {
-                Text(
-                    text = "Analiz Raporu",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Start)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)) // Hafif gri arka plan
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = analysisResult!!,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Black
-                        )
-                    }
-                }
-
-                // Sayfanın en altına biraz boşluk bırakalım
-                Spacer(modifier = Modifier.height(40.dp))
-            }
+            Text(
+                text = "LinkedIn veritabanından güncel ilanlar getirilir.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
         }
     }
 }

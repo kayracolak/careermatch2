@@ -6,60 +6,50 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 class GeminiHelper {
 
-    private val client = OkHttpClient()
+    // Timeout ayarları
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+
     private val apiKey = BuildConfig.OPENAI_API_KEY
 
-    /**
-     * Firestore'dan gelen transcriptText'i analiz eder
-     * ve öğrenciye özel kariyer raporu döner
-     */
-    suspend fun analyzeTranscript(transcriptText: String): String {
+    // DÜZELTME: Fonksiyon artık gelen metni olduğu gibi alıp gönderiyor.
+    // İçerideki sabit promptu kaldırdık.
+    suspend fun sendPromptToOpenAI(promptText: String): String {
         return withContext(Dispatchers.IO) {
 
-            val prompt = """
-                Sen üniversite öğrencilerine rehberlik eden samimi ve uzman bir kariyer danışmanısın.
-
-                GÖREVİN:
-                Aşağıdaki transkript metnini analiz et ve öğrenciye özel motive edici bir rapor hazırla.
-
-                RAPOR FORMATI:
-                1. 🌟 Güçlü Yönlerin
-                2. 🚀 Gelişim Alanların
-                3. 💼 Sana Uygun Kariyer Yolları (3 adet)
-
-                TRANSKRİPT:
-                $transcriptText
-            """.trimIndent()
-
-            // 🔹 OpenAI Responses API için doğru JSON
             val json = JSONObject().apply {
-                put("model", "gpt-4.1-mini")
-                put(
-                    "input",
-                    JSONArray().apply {
-                        put(
-                            JSONObject().apply {
-                                put("role", "user")
-                                put("content", prompt)
-                            }
-                        )
-                    }
-                )
+                // Modeli 'gpt-4o-mini' (en güncel ucuz model) veya 'gpt-3.5-turbo'
+                put("model", "gpt-4o-mini")
+
+                val messagesArray = JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("role", "system")
+                        // Sistem mesajını genel tuttuk.
+                        put("content", "Sen yardımcı bir yapay zeka asistanısın.")
+                    })
+                    put(JSONObject().apply {
+                        put("role", "user")
+                        // KRİTİK DÜZELTME: Dışarıdan gelen promptText direkt buraya konuyor.
+                        put("content", promptText)
+                    })
+                }
+                put("messages", messagesArray)
             }
 
-            val body = RequestBody.create(
-                "application/json".toMediaType(),
-                json.toString()
-            )
+            val body = json.toString().toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
-                .url("https://api.openai.com/v1/responses")
+                .url("https://api.openai.com/v1/chat/completions")
                 .addHeader("Authorization", "Bearer $apiKey")
                 .addHeader("Content-Type", "application/json")
                 .post(body)
@@ -67,29 +57,29 @@ class GeminiHelper {
 
             try {
                 client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
 
                     if (!response.isSuccessful) {
-                        val errorBody = response.body?.string()
-                        return@withContext "OpenAI Hatası (${response.code}): $errorBody"
+                        return@withContext "OpenAI Hatası (${response.code}): $responseBody"
                     }
 
-                    val responseBody = response.body?.string()
-                        ?: return@withContext "OpenAI boş cevap döndürdü."
+                    if (responseBody == null) return@withContext "OpenAI boş cevap döndürdü."
 
                     val jsonResponse = JSONObject(responseBody)
 
-                    // 🔹 Responses API doğru parse
-                    jsonResponse
-                        .getJSONArray("output")
+                    // Cevabı parse etme
+                    val content = jsonResponse
+                        .getJSONArray("choices")
                         .getJSONObject(0)
-                        .getJSONArray("content")
-                        .getJSONObject(0)
-                        .getString("text")
+                        .getJSONObject("message")
+                        .getString("content")
+
+                    content
                 }
             } catch (e: Exception) {
-                "OpenAI bağlantı hatası: ${e.localizedMessage}"
+                e.printStackTrace()
+                "Bağlantı hatası: ${e.localizedMessage}"
             }
         }
     }
-    
 }
