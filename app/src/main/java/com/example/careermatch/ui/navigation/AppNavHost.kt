@@ -28,24 +28,24 @@ fun AppNavHost(
         modifier = modifier
     ) {
 
-        // 1. LOGIN EKRANI
+        // 1. LOGIN
         composable(Routes.LOGIN) {
-            // ViewModel'i burada çağırıp kontrol edebiliriz
+
             val authViewModel: com.example.careermatch.viewmodel.AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 
             LoginScreen(
-                vm = authViewModel, // ViewModel'i içeri paslıyoruz
+                vm = authViewModel,
                 onRegisterClick = { navController.navigate(Routes.REGISTER) },
                 onForgotPasswordClick = { navController.navigate(Routes.FORGOT) },
                 onLoginSuccess = {
-                    // GİRİŞ BAŞARILI OLDUĞUNDA KONTROL ET
+                    // Kontrol
                     authViewModel.checkUserStatus { hasTranscript ->
                         if (hasTranscript) {
                             navController.navigate(Routes.TRANSCRIPT) {
                                 popUpTo(Routes.LOGIN) { inclusive = true }
                             }
                         } else {
-                            // Yoksa -> Bölüm Seçimi (Department)
+
                             navController.navigate(Routes.DEPARTMENT) {
                                 popUpTo(Routes.LOGIN) { inclusive = true }
                             }
@@ -76,7 +76,6 @@ fun AppNavHost(
         }
 
         // 4. DEPARTMENT SELECTION (Bölüm Seçimi)
-        // Bölüm seçildikten sonra Transkript ekranına yönlendirir.
         composable(Routes.DEPARTMENT) {
             DepartmentSelectionScreen(
                 onSelectionSuccess = {
@@ -87,18 +86,16 @@ fun AppNavHost(
         }
 
         // 5. TRANSCRIPT EKRANI (Yeni Eklenen Kısım)
-        // Transkript yüklenince veya "Mevcutla Devam Et" denilince Ana Sayfaya gider.
         composable(Routes.TRANSCRIPT) {
             TranscriptScreen(
                 onNavigateNext = {
-                    // İşlemler bitti, Ana Sayfaya (HOME) git.
                     navController.navigate(Routes.HOME) {
-                        // Geri tuşuna basınca tekrar transkript veya bölüm seçmeye dönmesin diye temizliyoruz
+
                         popUpTo(Routes.DEPARTMENT) { inclusive = true }
                     }
                 },
                 onLogout = {
-                    // Sağ üstteki çıkış butonuna basılırsa Login'e at ve her şeyi temizle
+                    // Login Temizleme
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0)
                     }
@@ -106,17 +103,17 @@ fun AppNavHost(
             )
         }
 
-        // 6. HOME SCREEN (Ana Sayfa)
+        // 6. HOME SCREEN
         composable(Routes.HOME) {
             HomeScreen(
                 navController = navController,
                 onLogout = {
-                    // 1. Firebase'den Çıkış Yap
+                    // 1. Firebase'den Çıkış
                     com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
 
-                    // 2. Giriş Ekranına Gönder ve Geçmişi Temizle
+                    // 2. Giriş Ekranı
                     navController.navigate(Routes.LOGIN) {
-                        popUpTo(0) // Tüm ekranları kapat, geri dönülemesin
+                        popUpTo(0) // Tüm ekranları kapatma
                     }
                 }
             )
@@ -126,10 +123,10 @@ fun AppNavHost(
         composable(Routes.JOB_SEARCH) {
             JobSearchScreen(
                 onLogout = {
-                    // 1. Firebase'den Oturumu Kapat
+                    // Firebase'den Oturumu Kapatma
                     com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
 
-                    // 2. Giriş Ekranına Yönlendir ve Geçmişi Temizle (Geri dönemesin)
+                    // Geçmişi Temizle
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0)
                     }

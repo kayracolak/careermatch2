@@ -45,7 +45,7 @@ fun TranscriptScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             viewModel.uploadPdf(context, uri) {
-                Toast.makeText(context, "Transkript Başarıyla İşlendi!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Transcript Uploaded Successfully!", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -53,10 +53,14 @@ fun TranscriptScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Akademik Profil") },
+                title = { Text("Academic Profile", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Color(0xFF1E88E5)
+                ),
                 actions = {
                     IconButton(onClick = { viewModel.logout { onLogout() } }) {
-                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Çıkış")
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout", tint = Color(0xFF1E88E5))
                     }
                 }
             )
@@ -65,121 +69,96 @@ fun TranscriptScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color(0xFFF5F7FA))
                 .padding(paddingValues)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
 
-            // DURUM 1: Transkript Zaten Var (Kullanıcıyı yormayalım)
             if (existingUrl != null) {
+                // Success Card
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)), // Açık Yeşil
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF4CAF50), RoundedCornerShape(16.dp))
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(24.dp),
+                    elevation = CardDefaults.cardElevation(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier.padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = Color(0xFF2E7D32),
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "Transkriptin Hazır!",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1B5E20)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFE8F5E9)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(48.dp))
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text("Transcript Ready!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Sistemde kayıtlı güncel transkriptin bulunuyor. Direkt analize geçebilirsin.",
-                            textAlign = TextAlign.Center,
-                            color = Color(0xFF2E7D32)
-                        )
+                        Text("Your academic data is secured. You can proceed to analysis.", textAlign = TextAlign.Center, color = Color.Gray)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(40.dp))
 
-                // Büyük Devam Butonu
                 Button(
                     onClick = { onNavigateNext() },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(12.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5)),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Analize Başla", fontSize = 18.sp)
+                    Text("Start Analysis", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Küçük Güncelle Butonu
                 TextButton(onClick = { pdfPickerLauncher.launch("application/pdf") }) {
-                    Text("Farklı bir transkript yükle", color = Color.Gray)
+                    Text("Upload a different transcript", color = Color(0xFF1E88E5))
                 }
 
             } else {
-                // DURUM 2: Transkript Yok (Şık bir yükleme alanı)
-                Icon(
-                    imageVector = Icons.Default.Description,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(80.dp)
-                )
-
+                // Upload State
+                Icon(Icons.Default.CloudUpload, contentDescription = null, tint = Color(0xFF1E88E5), modifier = Modifier.size(100.dp))
                 Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    "Transkriptini Yükle",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
+                Text("Upload Transcript", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color(0xFF1A1C1E))
                 Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    "Okul sisteminden aldığın PDF formatındaki not dökümünü buraya ekle. Yapay zeka derslerini analiz edecek.",
-                    textAlign = TextAlign.Center,
-                    color = Color.Gray
-                )
+                Text("Upload your PDF transcript to let AI analyze your strengths.", textAlign = TextAlign.Center, color = Color.Gray)
 
                 Spacer(modifier = Modifier.height(40.dp))
 
                 if (loading) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = Color(0xFF1E88E5))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Transkript işleniyor...", color = MaterialTheme.colorScheme.primary)
+                    Text("Processing...", color = Color(0xFF1E88E5))
                 } else {
                     Button(
                         onClick = { pdfPickerLauncher.launch("application/pdf") },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5))
                     ) {
-                        Icon(Icons.Default.CloudUpload, contentDescription = null)
+                        Icon(Icons.Default.Description, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("PDF Dosyası Seç")
+                        Text("Select PDF File", fontSize = 18.sp)
                     }
                 }
 
-                // Durum mesajı (Hata veya Başarı)
                 if (status != null) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                     Text(
                         text = status!!,
-                        color = if (status!!.contains("Hata")) Color.Red else Color.Black,
-                        textAlign = TextAlign.Center
+                        color = if (status!!.contains("Error")) Color.Red else Color(0xFF2E7D32),
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Medium
                     )
-
-                    // Eğer yeni yüklendiyse ve başarıysa devam butonu çıkar
-                    if (status!!.contains("Başarıyla")) {
+                    if (status!!.contains("Successfully")) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { onNavigateNext() }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Devam Et")
+                        Button(onClick = { onNavigateNext() }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5))) {
+                            Text("Continue")
                         }
                     }
                 }

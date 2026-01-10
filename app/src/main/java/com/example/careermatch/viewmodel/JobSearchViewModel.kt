@@ -40,6 +40,8 @@ class JobSearchViewModel : ViewModel() {
 
     // FONKSİYON 1: İş Ara
     fun searchJobs(title: String, location: String) {
+        // JobSearchViewModel.kt içinde searchJobs fonksiyonunun başına ekle
+        android.util.Log.d("API_CHECK", "Key: ${com.example.careermatch.BuildConfig.RAPID_API_KEY}")
         if (title.isBlank() || location.isBlank()) {
             _error.value = "Lütfen iş unvanı ve konum giriniz."
             return

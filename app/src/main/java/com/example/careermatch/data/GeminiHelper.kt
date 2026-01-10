@@ -22,24 +22,22 @@ class GeminiHelper {
 
     private val apiKey = BuildConfig.OPENAI_API_KEY
 
-    // DÜZELTME: Fonksiyon artık gelen metni olduğu gibi alıp gönderiyor.
-    // İçerideki sabit promptu kaldırdık.
     suspend fun sendPromptToOpenAI(promptText: String): String {
         return withContext(Dispatchers.IO) {
 
             val json = JSONObject().apply {
-                // Modeli 'gpt-4o-mini' (en güncel ucuz model) veya 'gpt-3.5-turbo'
+
                 put("model", "gpt-4o-mini")
 
                 val messagesArray = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
-                        // Sistem mesajını genel tuttuk.
+
                         put("content", "Sen yardımcı bir yapay zeka asistanısın.")
                     })
                     put(JSONObject().apply {
                         put("role", "user")
-                        // KRİTİK DÜZELTME: Dışarıdan gelen promptText direkt buraya konuyor.
+
                         put("content", promptText)
                     })
                 }
@@ -67,7 +65,6 @@ class GeminiHelper {
 
                     val jsonResponse = JSONObject(responseBody)
 
-                    // Cevabı parse etme
                     val content = jsonResponse
                         .getJSONArray("choices")
                         .getJSONObject(0)

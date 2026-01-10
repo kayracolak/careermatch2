@@ -7,7 +7,7 @@ object RetrofitClient {
 
     private const val BASE_URL = "https://linkedin-job-search-api.p.rapidapi.com/"
 
-    // LinkedIn API Servisi
+    // LinkedIn API
     val linkedInApi: LinkedInApi by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)

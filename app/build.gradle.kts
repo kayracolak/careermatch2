@@ -16,7 +16,7 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace = "com.example.careermatch"
-    compileSdk = 34
+    compileSdk = 35
 
     buildFeatures {
         buildConfig = true

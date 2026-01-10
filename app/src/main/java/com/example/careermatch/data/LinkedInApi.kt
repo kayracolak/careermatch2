@@ -7,22 +7,19 @@ import retrofit2.http.Query
 
 interface LinkedInApi {
 
-    // Son 7 günde yayınlanan aktif işleri getirir
+    // Son 7 gün
     @GET("active-jb-7d")
     suspend fun searchJobs(
-        // API KEY'i Header olarak göndereceğiz (BuildConfig'den gelecek)
+
         @Header("x-rapidapi-key") apiKey: String,
         @Header("x-rapidapi-host") host: String = "linkedin-job-search-api.p.rapidapi.com",
 
-        // Senin istediğin filtreler:
-        @Query("title_filter") jobTitle: String, // Örn: "iOS Developer"
-        @Query("location_filter") location: String, // Örn: "Turkey"
 
-        // ÖNEMLİ: Tam metin gelmesi için bunu sabit "text" yapıyoruz
+        @Query("title_filter") jobTitle: String,
+        @Query("location_filter") location: String,
         @Query("description_type") descType: String = "text",
 
-        // Sayfalama ve Limit
         @Query("limit") limit: Int = 10,
         @Query("offset") offset: Int = 0
-    ): List<JobPosting> // Cevap direkt liste olarak dönüyor
+    ): List<JobPosting>
 }
