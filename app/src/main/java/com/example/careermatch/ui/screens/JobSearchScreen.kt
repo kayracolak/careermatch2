@@ -1,12 +1,15 @@
 package com.example.careermatch.ui.screens
 
 import android.content.Intent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -18,10 +21,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -45,7 +52,7 @@ fun JobSearchScreen(
     var locationQuery by remember { mutableStateOf("Turkey") }
 
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showBottomSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(analysisResult) {
@@ -75,7 +82,7 @@ fun JobSearchScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // SEARCH CARD
+            // ARAMA KISMI
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 shape = RoundedCornerShape(16.dp),
@@ -134,7 +141,7 @@ fun JobSearchScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // JOB LIST
+            // İŞ LİSTESİ
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -157,7 +164,7 @@ fun JobSearchScreen(
             }
         }
 
-        // BOTTOM SHEET
+        // BOTTOM SHEET (YENİ VE MODERN TASARIM)
         if (showBottomSheet) {
             ModalBottomSheet(
                 onDismissRequest = {
@@ -165,45 +172,134 @@ fun JobSearchScreen(
                     viewModel.clearAnalysis()
                 },
                 sheetState = sheetState,
-                containerColor = Color.White
+                containerColor = Color.White,
+                dragHandle = { BottomSheetDefaults.DragHandle() }
             ) {
                 val scrollState = rememberScrollState()
+
+                // Puanı ve Metni Ayıklama
+                val rawText = analysisResult ?: ""
+                // Regex ile "SCORE: 85" gibi bir yapıyı bulup sayıyı alıyoruz
+                val scoreRegex = Regex("SCORE:\\s*(\\d+)")
+                val matchResult = scoreRegex.find(rawText)
+                val score = matchResult?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+                // Ekranda görünecek temiz metin (SCORE kısmını siliyoruz)
+                val cleanText = rawText.replace(Regex("SCORE:.*"), "").trim()
+                    .replace("**", "") // Yıldızları temizle
+                    .replace("#", "")  // Hashleri temizle
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp)
-                        .verticalScroll(scrollState)
+                        .padding(horizontal = 24.dp)
+                        .verticalScroll(scrollState),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(28.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("AI Analysis Report", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF1A1C1E))
-                    }
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color.LightGray.copy(alpha = 0.5f))
+                    Text(
+                        "Compatibility Report",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E88E5)
+                    )
 
-                    if (analysisResult != null) {
-                        // Markdown-like styling for AI response
-                        Text(analysisResult!!, style = MaterialTheme.typography.bodyLarge, color = Color(0xFF424242), lineHeight = 24.sp)
-                    } else {
-                        Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = Color(0xFF1E88E5))
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // PUAN GÖSTERGESİ (GAUGE)
+                    CircularScoreIndicator(score = score)
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // ANALİZ METNİ KARTLARI
+                    // Metni bölümlere göre ayırıp kartlara basabiliriz veya temiz metni şık bir kartta gösterebiliriz.
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FA)),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                cleanText,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color(0xFF424242),
+                                lineHeight = 24.sp
+                            )
                         }
                     }
+
                     Spacer(modifier = Modifier.height(50.dp))
                 }
             }
         }
 
         if (isAnalyzing && !showBottomSheet) {
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
-                Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
-                    Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color(0xFF1E88E5))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text("Analyzing compatibility...", fontWeight = FontWeight.Medium)
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {
+                Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(10.dp)) {
+                    Column(
+                        modifier = Modifier.padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(48.dp), color = Color(0xFF1E88E5), strokeWidth = 4.dp)
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text("AI is analyzing...", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1E88E5))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Comparing your transcript with job requirements.", textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = Color.Gray)
                     }
                 }
             }
+        }
+    }
+}
+
+// MODERN PUAN GÖSTERGESİ
+@Composable
+fun CircularScoreIndicator(
+    score: Int,
+    radius: Dp = 80.dp,
+    strokeWidth: Dp = 12.dp
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = score / 100f,
+        animationSpec = tween(durationMillis = 1500)
+    )
+
+    val color = when {
+        score >= 70 -> Color(0xFF4CAF50) // Yeşil
+        score >= 40 -> Color(0xFFFFC107) // Sarı
+        else -> Color(0xFFF44336) // Kırmızı
+    }
+
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(radius * 2)) {
+        Canvas(modifier = Modifier.size(radius * 2)) {
+            // Arka plan halkası
+            drawArc(
+                color = Color.LightGray.copy(alpha = 0.3f),
+                startAngle = 135f,
+                sweepAngle = 270f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+            )
+            // Dolu halka
+            drawArc(
+                color = color,
+                startAngle = 135f,
+                sweepAngle = 270f * animatedProgress,
+                useCenter = false,
+                style = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "$score%",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Text(
+                text = "Match",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
         }
     }
 }
@@ -224,8 +320,7 @@ fun JobCard(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFE3F2FD)),
+                        .background(Color(0xFFE3F2FD), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.Business, contentDescription = null, tint = Color(0xFF1E88E5))
@@ -244,9 +339,7 @@ fun JobCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = Color(0xFFF5F5F5))
-            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFF5F5F5))
 
             Row {
                 OutlinedButton(

@@ -60,7 +60,7 @@ fun ForgotPasswordScreen(
 
                 Button(
                     onClick = {
-                        // DÜZELTME: Boş kontrolü
+                        
                         if (email.isBlank()) {
                             customError = "Please enter email"
                         } else {

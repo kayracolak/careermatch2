@@ -13,16 +13,50 @@ class HomeViewModel : ViewModel() {
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    // Az önce oluşturduğun GeminiHelper sınıfını burada çağırıyoruz
     private val geminiHelper = GeminiHelper()
 
-    // Ekranda göstereceğimiz Analiz Sonucu (Başta boş olabilir)
     private val _analysisResult = MutableStateFlow<String?>(null)
     val analysisResult = _analysisResult.asStateFlow()
 
-    // Yükleniyor animasyonu için durum (Loading)
     private val _loading = MutableStateFlow(false)
     val loading = _loading.asStateFlow()
+
+    // YENİ: Kullanıcının mevcut ekstra bilgisini tutacak state
+    private val _extraInfo = MutableStateFlow("")
+    val extraInfo = _extraInfo.asStateFlow()
+
+    init {
+        fetchUserExtraInfo()
+    }
+
+    // YENİ FONKSİYON: Başlangıçta kayıtlı bilgi var mı diye bakar
+    private fun fetchUserExtraInfo() {
+        val uid = auth.currentUser?.uid ?: return
+        db.collection("users").document(uid).get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    _extraInfo.value = document.getString("extraInfo") ?: ""
+                }
+            }
+    }
+
+    // YENİ FONKSİYON: Kullanıcının girdiği metni kaydeder
+    fun saveExtraInfo(info: String, onSuccess: () -> Unit) {
+        val uid = auth.currentUser?.uid ?: return
+        _loading.value = true
+
+        db.collection("users").document(uid)
+            .update("extraInfo", info)
+            .addOnSuccessListener {
+                _loading.value = false
+                _extraInfo.value = info
+                onSuccess()
+            }
+            .addOnFailureListener {
+                // Eğer döküman yoksa (nadir durum) set ile merge yapabiliriz ama update genelde yeterlidir.
+                _loading.value = false
+            }
+    }
 
     // Bu fonksiyon butona basılınca çalışacak
     fun analyzeUserTranscript() {

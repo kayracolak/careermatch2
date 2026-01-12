@@ -40,7 +40,6 @@ class JobSearchViewModel : ViewModel() {
 
     // FONKSİYON 1: İş Ara
     fun searchJobs(title: String, location: String) {
-        // JobSearchViewModel.kt içinde searchJobs fonksiyonunun başına ekle
         android.util.Log.d("API_CHECK", "Key: ${com.example.careermatch.BuildConfig.RAPID_API_KEY}")
         if (title.isBlank() || location.isBlank()) {
             _error.value = "Lütfen iş unvanı ve konum giriniz."
@@ -72,32 +71,49 @@ class JobSearchViewModel : ViewModel() {
         val uid = auth.currentUser?.uid ?: return
 
         _isAnalyzing.value = true
-        _analysisResult.value = null // Önceki sonucu temizle
+        _analysisResult.value = null
 
-        // 1. Önce Firestore'dan Transkripti çek
         db.collection("users").document(uid).get()
             .addOnSuccessListener { document ->
                 val transcriptText = document.getString("transcriptText")
+                // YENİ: Ekstra bilgiyi de çekiyoruz. Eğer yoksa boş string gelir.
+                val extraInfoText = document.getString("extraInfo") ?: ""
 
                 if (!transcriptText.isNullOrEmpty()) {
-                    // 2. Transkript var, şimdi İlan Metni ile birleştirip AI'ya soralım
                     viewModelScope.launch {
-                        // AI'ya özel bir prompt hazırlayalım
+                        // AI Promptunu güncelliyoruz
+                        // DÜZELTİLDİ: ifBlank yapısı kullanıldı
                         val combinedPrompt = """
-                            AŞAĞIDAKİ İŞ İLANINI VE ÖĞRENCİ TRANSKRİPTİNİ KIYASLA.
-                            
-                            İŞ İLANI DETAYLARI:
-                            $jobDescription
-                            
-                            ÖĞRENCİ TRANSKRİPTİ:
-                            $transcriptText
+                            SEN KIDEMLİ BİR İNSAN KAYNAKLARI VE TEKNİK İŞE ALIM UZMANISIN.
                             
                             GÖREVİN:
-                            Bu öğrenci bu işe ne kadar uygun? 
-                            1. %0 ile %100 arası bir UYUM SKORU ver.
-                            2. Eksik olduğu kritik yetenekleri söyle.
-                            3. Avantajlı olduğu dersleri/konuları söyle.
-                            4. Kısa ve net ol.
+                            Aşağıdaki iş ilanı ile adayın profilini (transkript + ekstra beyanı) analiz etmek.
+                            
+                            İŞ İLANI:
+                            $jobDescription
+                            
+                            🎓 ÖĞRENCİ TRANSKRİPTİ:
+                            $transcriptText
+                            
+                            ✍️ ADAYIN EKSTRA BEYANI (Tecrübe/Projeler):
+                            ${extraInfoText.ifBlank { "Yok (Sadece transkripte göre değerlendir)" }}
+                            
+                            ÇIKTI FORMATI (KESİNLİKLE BU FORMATI KULLAN):
+                            SCORE: [0-100 arası sadece sayı]
+                            
+                            BAŞLIK: Kariyer Uyumluluk Raporu
+                            
+                            BÖLÜM 1: 🌟 Genel Değerlendirme
+                            (Adayın hem akademik hem de -varsa- ekstra tecrübelerini göz önüne alarak profesyonel özet yaz.)
+                            
+                            BÖLÜM 2: ✅ Temel Yetkinlik Eşleşmeleri
+                            (Transkript ve ekstra beyandan hangileri işe yarıyor?)
+                            
+                            BÖLÜM 3: ⚠️ Gelişim Alanları & Eksikler
+                            
+                            BÖLÜM 4: 💡 Kariyer Tavsiyesi
+                            
+                            NOT: Markdown yıldız işaretlerini (** veya *) KULLANMA. Başlıkları büyük harfle yaz.
                         """.trimIndent()
 
                         val result = openAI.sendPromptToOpenAI(combinedPrompt)
@@ -106,7 +122,7 @@ class JobSearchViewModel : ViewModel() {
                         _isAnalyzing.value = false
                     }
                 } else {
-                    _analysisResult.value = "Transkript bulunamadı. Lütfen önce transkript yükleyin."
+                    _analysisResult.value = "Transkript bulunamadı. Lütfen önce profilinizden transkript yükleyin."
                     _isAnalyzing.value = false
                 }
             }
@@ -116,7 +132,6 @@ class JobSearchViewModel : ViewModel() {
             }
     }
 
-    // Analiz sonucunu kapatmak için (Bottom sheet kapanınca)
     fun clearAnalysis() {
         _analysisResult.value = null
     }
