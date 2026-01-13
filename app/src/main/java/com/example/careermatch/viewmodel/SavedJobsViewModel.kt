@@ -3,7 +3,6 @@ package com.example.careermatch.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.careermatch.data.GeminiHelper
-import com.example.careermatch.data.RetrofitClient
 import com.example.careermatch.model.JobPosting
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -11,82 +10,53 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class JobSearchViewModel : ViewModel() {
+class SavedJobsViewModel : ViewModel() {
 
-    private val api = RetrofitClient.linkedInApi
-    private val openAI = GeminiHelper()
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val openAI = GeminiHelper()
 
-    private val _jobs = MutableStateFlow<List<JobPosting>>(emptyList())
-    val jobs = _jobs.asStateFlow()
+    // Kaydedilen ilanların listesi
+    private val _savedJobs = MutableStateFlow<List<JobPosting>>(emptyList())
+    val savedJobs = _savedJobs.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
     val loading = _loading.asStateFlow()
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error = _error.asStateFlow()
-
+    // Analiz durumları
     private val _analysisResult = MutableStateFlow<String?>(null)
     val analysisResult = _analysisResult.asStateFlow()
-
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing = _isAnalyzing.asStateFlow()
 
-    // YENİ: Favori durumlarını takip etmek için
-    private val _savedJobIds = MutableStateFlow<Set<String>>(emptySet())
-    val savedJobIds = _savedJobIds.asStateFlow()
-
     init {
-        listenToSavedJobs()
+        fetchSavedJobs()
     }
 
-    private fun listenToSavedJobs() {
+    // Favoriler
+    private fun fetchSavedJobs() {
         val uid = auth.currentUser?.uid ?: return
+        _loading.value = true
+
         db.collection("users").document(uid).collection("savedJobs")
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
-                    val ids = snapshot.documents.map { it.id }.toSet()
-                    _savedJobIds.value = ids
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    _loading.value = false
+                    return@addSnapshotListener
                 }
-            }
-    }
 
-    //Favori Ekle/Çıkar (Toggle)
-    fun toggleFavorite(job: JobPosting) {
-        val uid = auth.currentUser?.uid ?: return
-        val isSaved = _savedJobIds.value.contains(job.id)
-        val collectionRef = db.collection("users").document(uid).collection("savedJobs")
-
-        if (isSaved) {
-            collectionRef.document(job.id).delete()
-        } else {
-            collectionRef.document(job.id).set(job)
-        }
-    }
-
-    fun searchJobs(title: String, location: String) {
-        if (title.isBlank() || location.isBlank()) {
-            _error.value = "Lütfen iş unvanı ve konum giriniz."
-            return
-        }
-        viewModelScope.launch {
-            _loading.value = true
-            _error.value = null
-            try {
-                val results = api.searchJobs(
-                    apiKey = com.example.careermatch.BuildConfig.RAPID_API_KEY,
-                    jobTitle = title,
-                    location = location
-                )
-                _jobs.value = results
-            } catch (e: Exception) {
-                _error.value = "Arama hatası: ${e.localizedMessage}"
-                e.printStackTrace()
-            } finally {
+                if (snapshot != null) {
+                    val jobs = snapshot.toObjects(JobPosting::class.java)
+                    _savedJobs.value = jobs
+                }
                 _loading.value = false
             }
-        }
+    }
+
+    // Favoriden Kaldır
+    fun removeJob(jobId: String) {
+        val uid = auth.currentUser?.uid ?: return
+        db.collection("users").document(uid).collection("savedJobs").document(jobId).delete()
     }
 
     fun analyzeJobCompatibility(jobDescription: String) {
@@ -114,7 +84,7 @@ class JobSearchViewModel : ViewModel() {
                             BÖLÜM 2: ✅ Temel Yetkinlik Eşleşmeleri
                             BÖLÜM 3: ⚠️ Gelişim Alanları & Eksikler
                             BÖLÜM 4: 💡 Kariyer Tavsiyesi
-                            NOT: Markdown kullanma.
+                            NOT: Markdown yıldız işaretlerini kullanma.
                         """.trimIndent()
 
                         val result = openAI.sendPromptToOpenAI(combinedPrompt)
@@ -127,7 +97,7 @@ class JobSearchViewModel : ViewModel() {
                 }
             }
             .addOnFailureListener {
-                _analysisResult.value = "Veri hatası: ${it.localizedMessage}"
+                _analysisResult.value = "Hata oluştu."
                 _isAnalyzing.value = false
             }
     }

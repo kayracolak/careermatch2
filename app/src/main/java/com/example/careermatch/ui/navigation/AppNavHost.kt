@@ -15,6 +15,7 @@ object Routes {
     const val TRANSCRIPT = "transcript"
     const val HOME = "home"
     const val JOB_SEARCH = "job_search"
+    const val SAVED_JOBS = "saved_jobs"
 }
 
 @Composable
@@ -38,7 +39,7 @@ fun AppNavHost(
                 onRegisterClick = { navController.navigate(Routes.REGISTER) },
                 onForgotPasswordClick = { navController.navigate(Routes.FORGOT) },
                 onLoginSuccess = {
-                    // Kontrol
+
                     authViewModel.checkUserStatus { hasTranscript ->
                         if (hasTranscript) {
                             navController.navigate(Routes.TRANSCRIPT) {
@@ -55,8 +56,7 @@ fun AppNavHost(
             )
         }
 
-        // 2. REGISTER EKRANI
-        // Başarılı kayıt olursa direkt Bölüm Seçme ekranına gider.
+        // 2. REGISTER EKRAN
         composable(Routes.REGISTER) {
             RegisterScreen(
                 onRegisterSuccess = {
@@ -67,7 +67,7 @@ fun AppNavHost(
             )
         }
 
-        // 3. FORGOT PASSWORD EKRANI
+        // 3. FORGOT PASSWORD EKRAN
         composable(Routes.FORGOT) {
             ForgotPasswordScreen(
                 onPasswordReset = { navController.popBackStack() },
@@ -75,7 +75,7 @@ fun AppNavHost(
             )
         }
 
-        // 4. DEPARTMENT SELECTION (Bölüm Seçimi)
+        // 4. DEPARTMENT SELECTION
         composable(Routes.DEPARTMENT) {
             DepartmentSelectionScreen(
                 onSelectionSuccess = {
@@ -85,7 +85,7 @@ fun AppNavHost(
             )
         }
 
-        // 5. TRANSCRIPT EKRANI (Yeni Eklenen Kısım)
+        // 5. TRANSCRIPT EKRAN
         composable(Routes.TRANSCRIPT) {
             TranscriptScreen(
                 onNavigateNext = {
@@ -95,7 +95,7 @@ fun AppNavHost(
                     }
                 },
                 onLogout = {
-                    // Login Temizleme
+
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0)
                     }
@@ -108,29 +108,27 @@ fun AppNavHost(
             HomeScreen(
                 navController = navController,
                 onLogout = {
-                    // 1. Firebase'den Çıkış
                     com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
-
-                    // 2. Giriş Ekranı
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(0) // Tüm ekranları kapatma
-                    }
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) }
                 }
             )
         }
 
-        // 7. İŞ ARAMA EKRANI
+        // 7. İŞ ARAMA EKRAN
         composable(Routes.JOB_SEARCH) {
             JobSearchScreen(
+                navController = navController,
                 onLogout = {
-                    // Firebase'den Oturumu Kapatma
                     com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
-
-                    // Geçmişi Temizle
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(0)
-                    }
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) }
                 }
+            )
+        }
+
+        // 8. KAYDEDİLEN İŞLER
+        composable(Routes.SAVED_JOBS) {
+            SavedJobsScreen(
+                navController = navController
             )
         }
     }

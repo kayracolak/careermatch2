@@ -12,8 +12,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -21,7 +24,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -33,12 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController // Eklendi
 import com.example.careermatch.model.JobPosting
 import com.example.careermatch.viewmodel.JobSearchViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JobSearchScreen(
+    navController: NavController,
     viewModel: JobSearchViewModel = viewModel(),
     onLogout: () -> Unit
 ) {
@@ -47,6 +51,7 @@ fun JobSearchScreen(
     val error by viewModel.error.collectAsState()
     val analysisResult by viewModel.analysisResult.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+    val savedJobIds by viewModel.savedJobIds.collectAsState()
 
     var titleQuery by remember { mutableStateOf("Software Engineer") }
     var locationQuery by remember { mutableStateOf("Turkey") }
@@ -64,6 +69,12 @@ fun JobSearchScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Job Search", fontWeight = FontWeight.Bold) },
+
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1E88E5))
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.White,
                     titleContentColor = Color(0xFF1E88E5)
@@ -97,10 +108,7 @@ fun JobSearchScreen(
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF1E88E5)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF1E88E5),
-                            unfocusedBorderColor = Color.LightGray
-                        )
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1E88E5), unfocusedBorderColor = Color.LightGray)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
@@ -110,10 +118,7 @@ fun JobSearchScreen(
                         leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF1E88E5)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF1E88E5),
-                            unfocusedBorderColor = Color.LightGray
-                        )
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1E88E5), unfocusedBorderColor = Color.LightGray)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
@@ -146,8 +151,12 @@ fun JobSearchScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(jobs) { job ->
+                    val isFavorite = savedJobIds.contains(job.id)
+
                     JobCard(
                         job = job,
+                        isFavorite = isFavorite,
+                        onFavoriteClick = { viewModel.toggleFavorite(job) },
                         onApplyClick = {
                             val url = job.jobUrl ?: job.jobUrl
                             if (!url.isNullOrEmpty()) {
@@ -164,7 +173,7 @@ fun JobSearchScreen(
             }
         }
 
-        // BOTTOM SHEET (YENİ VE MODERN TASARIM)
+        // BOTTOM SHEET
         if (showBottomSheet) {
             ModalBottomSheet(
                 onDismissRequest = {
@@ -176,57 +185,25 @@ fun JobSearchScreen(
                 dragHandle = { BottomSheetDefaults.DragHandle() }
             ) {
                 val scrollState = rememberScrollState()
-
-                // Puanı ve Metni Ayıklama
                 val rawText = analysisResult ?: ""
-                // Regex ile "SCORE: 85" gibi bir yapıyı bulup sayıyı alıyoruz
                 val scoreRegex = Regex("SCORE:\\s*(\\d+)")
                 val matchResult = scoreRegex.find(rawText)
                 val score = matchResult?.groupValues?.get(1)?.toIntOrNull() ?: 0
-
-                // Ekranda görünecek temiz metin (SCORE kısmını siliyoruz)
-                val cleanText = rawText.replace(Regex("SCORE:.*"), "").trim()
-                    .replace("**", "") // Yıldızları temizle
-                    .replace("#", "")  // Hashleri temizle
+                val cleanText = rawText.replace(Regex("SCORE:.*"), "").trim().replace("**", "").replace("#", "")
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .verticalScroll(scrollState),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).verticalScroll(scrollState),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        "Compatibility Report",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E88E5)
-                    )
-
+                    Text("Compatibility Report", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF1E88E5))
                     Spacer(modifier = Modifier.height(24.dp))
-
-                    // PUAN GÖSTERGESİ (GAUGE)
                     CircularScoreIndicator(score = score)
-
                     Spacer(modifier = Modifier.height(32.dp))
-
-                    // ANALİZ METNİ KARTLARI
-                    // Metni bölümlere göre ayırıp kartlara basabiliriz veya temiz metni şık bir kartta gösterebiliriz.
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FA)),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FA)), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(20.dp)) {
-                            Text(
-                                cleanText,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = Color(0xFF424242),
-                                lineHeight = 24.sp
-                            )
+                            Text(cleanText, style = MaterialTheme.typography.bodyLarge, color = Color(0xFF424242), lineHeight = 24.sp)
                         }
                     }
-
                     Spacer(modifier = Modifier.height(50.dp))
                 }
             }
@@ -235,15 +212,10 @@ fun JobSearchScreen(
         if (isAnalyzing && !showBottomSheet) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {
                 Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(10.dp)) {
-                    Column(
-                        modifier = Modifier.padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column(modifier = Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(modifier = Modifier.size(48.dp), color = Color(0xFF1E88E5), strokeWidth = 4.dp)
                         Spacer(modifier = Modifier.height(24.dp))
                         Text("AI is analyzing...", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1E88E5))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Comparing your transcript with job requirements.", textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = Color.Gray)
                     }
                 }
             }
@@ -251,62 +223,11 @@ fun JobSearchScreen(
     }
 }
 
-// MODERN PUAN GÖSTERGESİ
-@Composable
-fun CircularScoreIndicator(
-    score: Int,
-    radius: Dp = 80.dp,
-    strokeWidth: Dp = 12.dp
-) {
-    val animatedProgress by animateFloatAsState(
-        targetValue = score / 100f,
-        animationSpec = tween(durationMillis = 1500)
-    )
-
-    val color = when {
-        score >= 70 -> Color(0xFF4CAF50) // Yeşil
-        score >= 40 -> Color(0xFFFFC107) // Sarı
-        else -> Color(0xFFF44336) // Kırmızı
-    }
-
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(radius * 2)) {
-        Canvas(modifier = Modifier.size(radius * 2)) {
-            // Arka plan halkası
-            drawArc(
-                color = Color.LightGray.copy(alpha = 0.3f),
-                startAngle = 135f,
-                sweepAngle = 270f,
-                useCenter = false,
-                style = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
-            )
-            // Dolu halka
-            drawArc(
-                color = color,
-                startAngle = 135f,
-                sweepAngle = 270f * animatedProgress,
-                useCenter = false,
-                style = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
-            )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "$score%",
-                fontSize = 36.sp,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Text(
-                text = "Match",
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
-        }
-    }
-}
-
 @Composable
 fun JobCard(
     job: JobPosting,
+    isFavorite: Boolean,
+    onFavoriteClick: () -> Unit,
     onApplyClick: () -> Unit,
     onAnalyzeClick: () -> Unit
 ) {
@@ -318,9 +239,7 @@ fun JobCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color(0xFFE3F2FD), RoundedCornerShape(12.dp)),
+                    modifier = Modifier.size(48.dp).background(Color(0xFFE3F2FD), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.Business, contentDescription = null, tint = Color(0xFF1E88E5))
@@ -336,6 +255,14 @@ fun JobCard(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(text = job.location ?: "Remote", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     }
+                }
+
+                IconButton(onClick = onFavoriteClick) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Save",
+                        tint = if (isFavorite) Color(0xFFE91E63) else Color.Gray // Pembe veya Gri
+                    )
                 }
             }
 
@@ -362,6 +289,56 @@ fun JobCard(
                     Text("Analyze")
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun CircularScoreIndicator(
+    score: Int,
+    radius: Dp = 80.dp,
+    strokeWidth: Dp = 12.dp
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = score / 100f,
+        animationSpec = tween(durationMillis = 1500)
+    )
+
+    val color = when {
+        score >= 70 -> Color(0xFF4CAF50) // Yeşil
+        score >= 40 -> Color(0xFFFFC107) // Sarı
+        else -> Color(0xFFF44336) // Kırmızı
+    }
+
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(radius * 2)) {
+        Canvas(modifier = Modifier.size(radius * 2)) {
+            drawArc(
+                color = Color.LightGray.copy(alpha = 0.3f),
+                startAngle = 135f,
+                sweepAngle = 270f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+            )
+            drawArc(
+                color = color,
+                startAngle = 135f,
+                sweepAngle = 270f * animatedProgress,
+                useCenter = false,
+                style = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "$score%",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Text(
+                text = "Match",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
         }
     }
 }
